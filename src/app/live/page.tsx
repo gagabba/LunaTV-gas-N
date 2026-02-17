@@ -2090,17 +2090,18 @@ function LivePageClient() {
                        videoUrl.includes('/yy/');         // YY源
 
       // 🚀 智能选择直连或代理模式
-      // FLV 流强制使用直连，不走代理
       let targetUrl: string;
-      if (isFlvUrl) {
-        targetUrl = videoUrl;  // FLV 直连
-        console.log(`🎬 播放模式: ⚡ FLV直连 | URL: ${targetUrl.substring(0, 100)}...`);
+      const useDirect = await shouldUseDirectPlayback(videoUrl);
+
+      if (useDirect) {
+        // 直连模式：直接使用原始 URL
+        targetUrl = videoUrl;
+        console.log(`🎬 播放模式: ⚡ 直连 (${isFlvUrl ? 'FLV' : 'M3U8'}) | URL: ${targetUrl.substring(0, 100)}...`);
       } else {
-        const useDirect = await shouldUseDirectPlayback(videoUrl);
-        targetUrl = useDirect
-          ? videoUrl  // 直连模式：直接使用原始 URL
-          : `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`;  // 代理模式
-        console.log(`🎬 播放模式: ${useDirect ? '⚡ 直连' : '🔄 代理'} | URL: ${targetUrl.substring(0, 100)}...`);
+        // 代理模式：FLV 和 M3U8 都通过代理
+        const proxyEndpoint = isFlvUrl ? '/api/proxy/stream' : '/api/proxy/m3u8';
+        targetUrl = `${proxyEndpoint}?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`;
+        console.log(`🎬 播放模式: 🔄 代理 (${isFlvUrl ? 'FLV' : 'M3U8'}) | URL: ${targetUrl.substring(0, 100)}...`);
       }
 
       // 根据 URL 类型选择播放器类型
@@ -2204,10 +2205,14 @@ function LivePageClient() {
 
         artPlayerRef.current.on('loadeddata', () => {
           setIsVideoLoading(false);
+          // 视频成功加载，清除错误状态
+          setUnsupportedType(null);
         });
 
         artPlayerRef.current.on('canplay', () => {
           setIsVideoLoading(false);
+          // 视频可以播放，清除错误状态
+          setUnsupportedType(null);
         });
 
         artPlayerRef.current.on('waiting', () => {
@@ -2224,10 +2229,13 @@ function LivePageClient() {
               // 网络错误由 HLS/FLV 处理
               console.log('Video element network error (handled by HLS/FLV)');
             } else if (errorCode === 3) {
-              setUnsupportedType('decode-error');
+              // 只在没有已设置错误时才设置解码错误
+              setUnsupportedType(prev => prev || 'decode-error');
               setIsVideoLoading(false);
             } else if (errorCode === 4) {
-              setUnsupportedType('format-not-supported');
+              // 只在没有已设置错误时才设置格式不支持错误
+              // 避免覆盖 HLS/FLV 已经设置的 network-error
+              setUnsupportedType(prev => prev || 'format-not-supported');
               setIsVideoLoading(false);
             }
           }

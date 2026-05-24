@@ -204,6 +204,7 @@ export interface AdminConfig {
   TrustedNetworkConfig?: {
     enabled: boolean;                    // 是否启用信任网络模式（内网免登录）
     trustedIPs: string[];               // 信任的IP/CIDR列表（如 192.168.0.0/16, 10.0.0.0/8）
+    blockAdminAccess?: boolean;          // 是否禁止信任网络访客访问后台（默认 false 保持现状）
   };
   DanmuApiConfig?: {
     enabled: boolean;                    // 是否启用弹幕API（默认启用）
@@ -276,3 +277,12 @@ export interface AdminConfigResult {
   Role: 'owner' | 'admin';
   Config: AdminConfig;
 }
+
+// 🎯 Cron 配置默认值（统一管理，避免多处定义）
+export const DEFAULT_CRON_CONFIG = {
+  enableAutoRefresh: true,
+  maxRecordsPerRun: 50,      // 优化：平衡性能和资源消耗
+  onlyRefreshRecent: true,
+  recentDays: 21,            // 优化：覆盖最近3周活跃用户
+  onlyRefreshOngoing: true,
+} as const;
